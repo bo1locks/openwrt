@@ -1,0 +1,66 @@
+name: build
+
+on:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+
+    - name: Checkout repository
+      uses: actions/checkout@v2
+      with:
+        fetch-depth: 0
+
+    - name: Delete old files
+      run: find . -maxdepth 1 -not -name '.' -not -name '..' -not -name '.git' -not -name '.github' -exec rm -rf {} +
+
+    - name: Create temporary directory
+      run: mkdir raw
+
+    - name: Get openwrt
+      run: |
+        git clone https://github.com/openwrt/openwrt.git -b openwrt-22.03 raw/vanilla
+        find raw/vanilla/. -maxdepth 1 -not -name '.' -not -name '..' -not -name '.git' -not -name '.github' -exec mv -t . {} \;
+
+    - name: Get lede
+      run: |
+        git clone https://github.com/coolsnowwolf/lede.git raw/lede
+        mv raw/lede/package/lean package/lean
+
+    - name: Get helloworld
+      run: |
+        git clone https://github.com/fw876/helloworld.git raw/helloworld
+        mkdir package/helloworld
+        mv raw/helloworld/* package/helloworld
+
+    - name: Get minieap
+      run: |
+        mkdir package/minieap
+        git clone https://github.com/ysc3839/openwrt-minieap.git -b gzhu raw/openwrt-minieap
+        mkdir package/minieap/minieap
+        mv raw/openwrt-minieap/* package/minieap/minieap
+        git clone https://github.com/ysc3839/luci-proto-minieap.git raw/luci-proto-minieap
+        mkdir package/minieap/luci-proto-minieap
+        mv raw/luci-proto-minieap/* package/minieap/luci-proto-minieap
+        mkdir -p files/etc/hotplug.d/iface
+        wget https://gist.githubusercontent.com/ysc3839/ad3991819032cce7e9b5c0fd574ccf35/raw/dea4aef1615696f1828204e0e28a313a989a7e55/99-minieap -O files/etc/hotplug.d/iface/99-minieap
+
+    - name: Remove temporary directory
+      run: rm -rf raw
+
+    - name: Remove `/files` from `.gitignore`
+      run: sed -i '/\/files/d' .gitignore
+
+    - name: Commit changes
+      run: |
+        git config --local user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git config --local user.name "github-actions[bot]"
+        git add --all
+        git commit -m "Update files"
+
+    - name: Push changes
+      uses: ad-m/github-push-action@master
+      with:
+        github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}

@@ -1,0 +1,20 @@
+#!/bin/sh
+FILE='/var/etc/minieap/last-down'
+
+[ "$INTERFACE" = minieap -a "$ACTION" = ifup-failed ] && {
+	CURR=`date +%s`
+	LAST=0
+
+	[ -e "$FILE" ] && LAST=`cat "$FILE"`
+	echo -n "$CURR" > "$FILE"
+	DELTA=$((CURR - LAST))
+
+	logger -t minieap-keep "Last down $DELTA secs ago."
+
+	SLEEP_TIME=600
+	[ $DELTA -gt 60 ] && SLEEP_TIME=60
+
+	logger -t minieap-keep "Sleep for $SLEEP_TIME secs."
+
+	(sleep $SLEEP_TIME; ifup minieap;) &
+}
